@@ -1,5 +1,5 @@
 """
-Step 2: IngestIMF (PySpark on Dataproc)
+IngestIMF (PySpark on Dataproc)
 ---------------------------------------
 Pull all IMF World Economic Outlook (WEO) indicators for all countries.
 Harmonize country codes to ISO3 during ingestion.
@@ -13,10 +13,6 @@ Usage (submit to Dataproc):
     gcloud dataproc jobs submit pyspark ingest_imf.py \
         --cluster=msba405-prototype \
         --region=us-central1
-
-Or run locally in Colab:
-    !pip install pyspark requests
-    %run ingest_imf.py
 """
 
 import requests
