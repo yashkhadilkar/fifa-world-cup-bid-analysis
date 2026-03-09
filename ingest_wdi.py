@@ -11,9 +11,6 @@ Usage (submit to Dataproc):
         --py-files=gs://msba405-team-1-data/scripts/ingest_wdi.py \
         --properties="spark.jars.packages=com.google.cloud.bigdataoss:gcs-connector:hadoop3-2.2.11"
 
-Or run locally in Colab:
-    !pip install wbgapi pyspark
-    %run ingest_wdi.py
 """
 
 import wbgapi as wb
