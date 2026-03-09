@@ -1,0 +1,19 @@
+# Credentials (never commit these)
+.env
+*.pkl
+
+# Luigi flags
+/tmp/luigi_*.flag
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Data files (stay in GCS, not in repo)
+*.parquet
+*.csv
+!fifa_wc_hosts.csv
+
+# OS
+.DS_Store
