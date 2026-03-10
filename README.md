@@ -30,6 +30,6 @@ The pipeline flows left to right through five stages:
 
 **Serving (Snowflake):** LoadSnowflake loads three fact tables into the FACTS schema with atomic rollback: if any table fails, all tables from that run are dropped. LoadDimensions then populates the DIMENSIONS schema with DIM_COUNTRY and DIM_INDICATOR using the World Bank API for human-readable names.
 
-**Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting readiness and historical impact.
+**Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting similarity and historical impact.
 
 Luigi orchestrates all tasks with dependency resolution. The pipeline is idempotent: re-running skips completed tasks.
