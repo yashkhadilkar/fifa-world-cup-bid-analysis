@@ -59,6 +59,25 @@ gsutil cp build_event_window.py gs://msba405-team-1-data/scripts/build_event_win
 
 ⭐ All of these scripts should be in a separate scripts folder that should be created in GCS bucket to store all of the scripts for the data sources and processing phase, including `ingest_imf.py`, `ingest_wdi.py`, `build_event_windows.py`, and `build_training_features.py`.
 
+## GCS Bucket Structure
+
+```
+gs://msba405-team-1-data/
+├── raw/
+│   ├── wdi/wdi_data.parquet              
+│   ├── imf/imf_data.parquet              
+│   └── fifa_wc_hosts.csv                 
+├── scripts/
+│   ├── build_training_features.py
+│   └── build_event_window.py
+├── processed/                            (created by pipeline)
+│   ├── training_features/                (33 rows, ~177 indicators)
+│   └── predictions/
+│       └── country_scores.parquet        (208 rows)
+└── event_window/                         (created by pipeline)
+    └── fact_host_event_window/           (172,249 rows)
+```
+
 
 ## Quick Start
 
