@@ -54,21 +54,43 @@ gcloud config set project msba405-team-1
 Export your Snowflake credentials in your terminal before running:
 
 ```bash
-export SNOWFLAKE_ACCOUNT="LHNMKHH-EG10620"
-export SNOWFLAKE_USER="your_username"
-export SNOWFLAKE_PASSWORD="your_password"
-export SNOWFLAKE_WAREHOUSE="WC_WH"
-export SNOWFLAKE_DATABASE="FIFA_WC"
-export SNOWFLAKE_ROLE="PUBLIC"
+import snowflake.connector
+
+conn = snowflake.connector.connect(
+    account="your_account",
+    user="your_username",
+    password="your_password",
+    database="FIFA_WC",
+    warehouse="WC_WH",
+    role="ACCOUNTADMIN",
+)
+cur = conn.cursor()
+
+cur.execute("GRANT ALL PRIVILEGES ON SCHEMA FACTS TO ROLE PUBLIC")
+cur.execute("GRANT ALL PRIVILEGES ON SCHEMA DIMENSIONS TO ROLE PUBLIC")
+cur.execute("GRANT ALL PRIVILEGES ON SCHEMA ANALYTICS TO ROLE PUBLIC")
+
+print("Done! Permissions granted.")
+cur.close()
+conn.close()
 ```
 
 These stay in your terminal session only and are never committed to the repo.
 
-### 3. Verify Raw Data
+### 3. Clear failed flags
+
+Clear any failed flags if running again.
+
+```bash
+!rm -f /tmp/luigi_*.flag
+```
+
+
+### 4. Verify Raw Data
 
 The raw data must already be present in GCS. The `run_pipeline.sh` script checks for these files and will exit with a clear error if any are missing. See the "Data Download and Ingestion" section below if you need to populate the bucket from scratch.
 
-### 4. Run the Pipeline
+### 5. Run the Pipeline
 
 ```bash
 bash run_pipeline.sh
@@ -76,9 +98,10 @@ bash run_pipeline.sh
 
 This single command:
 1. Validates GCP authentication and Snowflake credentials
-2. Verifies raw data and scripts exist in GCS
-3. Creates a Dataproc cluster (`msba405-prototype`)
-4. Runs the full Luigi pipeline (sensors, Spark jobs, ML training, Snowflake load)
-5. Deletes the Dataproc cluster (even if the pipeline fails, to save credits)
+2. Clears any failed flags from previous pipeline run
+3. Verifies raw data and scripts exist in GCS
+4. Creates a Dataproc cluster (`msba405-prototype`)
+5. Runs the full Luigi pipeline (sensors, Spark jobs, ML training, Snowflake load)
+6. Deletes the Dataproc cluster (even if the pipeline fails, to save credits)
 
-Expected runtime: ~10-15 minutes (cluster creation takes 2-3 min, Spark jobs ~5 min, model + Snowflake ~2 min).
+Expected runtime: ~25-30 minutes (cluster creation takes 2-3 min, Spark jobs ~10 min, model + Snowflake ~12-13 min).
