@@ -17,7 +17,7 @@ bash run_pipeline.sh
 
 This script creates a Dataproc cluster, runs all pipeline tasks, loads Snowflake, and deletes the cluster automatically.
 
-## Architecture
+## Pipeline
 > See `architecture_diagram.png` in the repo for a visual diagram.
 
 The pipeline flows left to right through five stages:
