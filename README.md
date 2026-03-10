@@ -40,6 +40,35 @@ Raw data must be present in GCS before running the pipeline. The `ingest_imf.py`
 Additionally, a scripts folder should be created in GCS bucket to store all of the scripts for the data sources and processing phase, including `ingest_imf.py`, `ingest_wdi.py`, `build_event_windows.py`, and `build_training_features.py`.
 
 
+# Data Download and Ingestion
+
+Raw data must be present in GCS before running the pipeline. If the bucket is already populated (as it is for the demo video), skip this section. 
+
+### 1. World Bank WDI Data
+
+Run the WDI ingestion script `ingest_wdi.py` in Colab (this takes ~4 hours and produces 8.4M rows):
+
+
+### 2. IMF Data
+
+Run the WDI ingestion script `ingest_imf.py` in Colab:
+
+### 3. FIFA Hosts CSV
+
+```bash
+gsutil cp fifa_wc_hosts.csv gs://msba405-team-1-data/raw/fifa_wc_hosts.csv
+```
+
+### 4. PySpark Scripts
+
+```bash
+gsutil cp build_training_features.py gs://msba405-team-1-data/scripts/build_training_features.py
+gsutil cp build_event_window.py gs://msba405-team-1-data/scripts/build_event_window.py
+```
+
+⭐ All of these scripts should be in a separate scripts folder that should be created in GCS bucket to store all of the scripts for the data sources and processing phase, including `ingest_imf.py`, `ingest_wdi.py`, `build_event_windows.py`, and `build_training_features.py`.
+
+
 ## Quick Start
 
 ### 1. Prerequisites
