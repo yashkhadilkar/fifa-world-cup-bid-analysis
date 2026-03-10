@@ -117,7 +117,6 @@ cur.execute("GRANT ALL PRIVILEGES ON SCHEMA FACTS TO ROLE PUBLIC")
 cur.execute("GRANT ALL PRIVILEGES ON SCHEMA DIMENSIONS TO ROLE PUBLIC")
 cur.execute("GRANT ALL PRIVILEGES ON SCHEMA ANALYTICS TO ROLE PUBLIC")
 
-print("Done! Permissions granted.")
 cur.close()
 conn.close()
 ```
