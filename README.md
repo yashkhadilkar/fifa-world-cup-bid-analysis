@@ -2,7 +2,7 @@
 
 **MSBA 405 · Team 1 · UCLA Anderson**
 
-Anay Mehta, Hans Grunwald, Yash Khadilkar, Zahid Ahmed, Matheus Kina, Mubarak Alkharafi
+Hans Grunwald, Anay Mehta, Yash Khadilkar, Zahid Ahmed, Matheus Kina, Mubarak Alkharafi
 
 ---
 ## Overview
