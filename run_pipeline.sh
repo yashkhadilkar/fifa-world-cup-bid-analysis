@@ -4,7 +4,7 @@
 # MSBA 405 — Team 1 — "Should We Bid?"
 #
 # Before running, export your credentials:
-#   export SNOWFLAKE_ACCOUNT="LHNMKHH-EG10620"
+#   export SNOWFLAKE_ACCOUNT="your_account"
 #   export SNOWFLAKE_USER="your_username"
 #   export SNOWFLAKE_PASSWORD="your_password"
 #   export SNOWFLAKE_WAREHOUSE="WC_WH"
