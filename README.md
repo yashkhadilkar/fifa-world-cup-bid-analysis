@@ -105,3 +105,5 @@ This single command:
 6. Deletes the Dataproc cluster (even if the pipeline fails, to save credits)
 
 Expected runtime: ~25-30 minutes (cluster creation takes 2-3 min, Spark jobs ~10 min, model + Snowflake ~12-13 min).
+
+⭐ Demo was run in Google Colab
