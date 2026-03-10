@@ -294,10 +294,18 @@ The Tableau dashboard connects to Snowflake and provides interactive views for e
 
 | Name              | Role                    |
 |-------------------|-------------------------|
-| Yash Khadilkar    | Technical, ETL           |
+| Yash Khadilkar    | Technical, ETL pipeline           |
 | Anay Mehta        | Technical, Model         |
 | Hans Grunwald     | Data, dashboard |
-| Matheus Kina      | Data curation, dashboard |
-| Zahid Ahmed       | Data curation, presentation|
-| Matheus Kina      | Data curation, presentation |
-| Mubarak Alkharafi | Data curation, dashboard |
+| Matheus Kina      | Data, dashboard |
+| Zahid Ahmed       | Data, presentation|
+| Mubarak Alkharafi | Data curation, presentation |
+
+## Notes
+
+- All GCP resources are in us-central1 / us-central1-b to avoid data transfer charges.
+- The Dataproc cluster is created and deleted by `run_pipeline.sh` automatically.
+- Snowflake is on a 30-day Enterprise trial ($400 credits). The trial must remain active through the grading period.
+- The Isolation Forest model uses one-class anomaly detection because training data contains only positive examples (past host countries) with no labeled negative examples.
+- WDI ingestion is excluded from the Luigi pipeline because it takes ~20 minutes. It is treated as a pre-existing GCS asset.
+- Snowflake credentials are set via `export` in the terminal session. Never committed to the repo.
