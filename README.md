@@ -87,7 +87,7 @@ These stay in your terminal session only and are never committed to the repo.
 
 ### 3. Clear failed flags
 
-Clear any failed flags if running again.
+Clear any failed flags if running the pipeline again.
 
 ```bash
 !rm -f /tmp/luigi_*.flag
