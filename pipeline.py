@@ -1,20 +1,20 @@
 """
 FIFA World Cup Hosting Analysis Pipeline
-MSBA 405 - Team 1
+MSBA 405 — Team 1
 
 Luigi-orchestrated pipeline that processes World Bank WDI and IMF data,
 builds training features and event window tables on Dataproc (PySpark),
-trains an Isolation Forest model locally, and loads results into Snowflake.
+trains a model locally, and loads results into Snowflake.
 
-Usage (from Google Colab):
-    !python pipeline.py RunAll
+Usage:
+    export SNOWFLAKE_USER="..." SNOWFLAKE_PASSWORD="..."
+    python pipeline.py RunAll --local-scheduler
 """
 
 import luigi
 import subprocess
 import os
 import json
-import time
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -28,12 +28,16 @@ GCP_PROJECT = "msba405-team-1"
 GCP_REGION = "us-central1"
 CLUSTER_NAME = "msba405-prototype"
 
-SNOWFLAKE_ACCOUNT = "LHNMKHH-EG10620"
+SNOWFLAKE_ACCOUNT = os.environ.get("SNOWFLAKE_ACCOUNT", "LHNMKHH-EG10620")
 SNOWFLAKE_USER = os.environ.get("SNOWFLAKE_USER", "")
 SNOWFLAKE_PASSWORD = os.environ.get("SNOWFLAKE_PASSWORD", "")
-SNOWFLAKE_DATABASE = "FIFA_WC"
-SNOWFLAKE_SCHEMA = "ANALYTICS"
-SNOWFLAKE_WAREHOUSE = "WC_WH"
+SNOWFLAKE_DATABASE = os.environ.get("SNOWFLAKE_DATABASE", "FIFA_WC")
+SNOWFLAKE_WAREHOUSE = os.environ.get("SNOWFLAKE_WAREHOUSE", "WC_WH")
+SNOWFLAKE_ROLE = os.environ.get("SNOWFLAKE_ROLE", "PUBLIC")
+
+# Schemas
+FACTS_SCHEMA = "FACTS"
+DIMENSIONS_SCHEMA = "DIMENSIONS"
 
 
 # ---------------------------------------------------------------------------
@@ -98,8 +102,7 @@ class CheckCluster(luigi.ExternalTask):
         state = out.strip()
         if state != "RUNNING":
             raise RuntimeError(
-                f"Cluster {CLUSTER_NAME} is in state '{state}', expected RUNNING. "
-                f"Start it with: gcloud dataproc clusters start {CLUSTER_NAME} --region={GCP_REGION}"
+                f"Cluster {CLUSTER_NAME} is in state '{state}', expected RUNNING."
             )
         with self.output().open("w") as f:
             f.write("ok")
@@ -111,7 +114,7 @@ class CheckCluster(luigi.ExternalTask):
 
 class BuildTrainingFeatures(luigi.Task):
     """
-    Step 3: Join WDI + IMF + hosts CSV, compute 6-year pre-event window
+    Join WDI + IMF + hosts CSV, compute 6-year pre-event window
     averages, pivot to wide format, apply correlation filter (0.90).
     Output: processed/training_features/ (33 rows x ~177 indicators)
     """
@@ -128,7 +131,6 @@ class BuildTrainingFeatures(luigi.Task):
             f"--cluster={CLUSTER_NAME} --region={GCP_REGION}",
             "Dataproc: BuildTrainingFeatures"
         )
-        # Verify output exists
         run_cmd(
             f"gsutil ls {GCS_BUCKET}/processed/training_features/",
             "Verify training features output"
@@ -139,7 +141,7 @@ class BuildTrainingFeatures(luigi.Task):
 
 class BuildEventWindow(luigi.Task):
     """
-    Step 4: For each past host, create indicator values from t-6 to t+6
+    For each past host, create indicator values from t-6 to t+6
     relative to hosting year. Long format for Tableau flexibility.
     Output: event_window/fact_host_event_window/ (172,249 rows)
     """
@@ -156,7 +158,6 @@ class BuildEventWindow(luigi.Task):
             f"--cluster={CLUSTER_NAME} --region={GCP_REGION}",
             "Dataproc: BuildEventWindow"
         )
-        # Verify output exists
         run_cmd(
             f"gsutil ls {GCS_BUCKET}/event_window/fact_host_event_window/",
             "Verify event window output"
@@ -166,14 +167,14 @@ class BuildEventWindow(luigi.Task):
 
 
 # ===========================================================================
-# Local ML task (scikit-learn Isolation Forest)
+# Local ML task
 # ===========================================================================
 
 class TrainAndPredict(luigi.Task):
     """
-    Step 5: Train Isolation Forest on host country profiles (33 rows),
-    then score all ~261 countries. Outputs predictions to GCS.
-    Runs locally (not on Dataproc) since scikit-learn is used.
+    Train model on host country profiles (33 rows),
+    then score all ~208 countries. Outputs predictions to GCS.
+    Runs locally (not on Dataproc).
     """
     def requires(self):
         return [BuildTrainingFeatures()]
@@ -209,7 +210,8 @@ class TrainAndPredict(luigi.Task):
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train_imp)
 
-        # ---- Train Isolation Forest ----
+        # ---- Train model ----
+        # TODO: Replace with SVM when ready
         logger.info("Training Isolation Forest...")
         model = IsolationForest(
             n_estimators=200,
@@ -221,7 +223,6 @@ class TrainAndPredict(luigi.Task):
         # ---- Score all countries ----
         logger.info("Building all-country feature matrix...")
 
-        # Load raw WDI + IMF
         wdi_df = pq.ParquetDataset("msba405-team-1-data/raw/wdi/", filesystem=fs).read().to_pandas()
         imf_df = pq.ParquetDataset("msba405-team-1-data/raw/imf/", filesystem=fs).read().to_pandas()
 
@@ -280,14 +281,14 @@ class TrainAndPredict(luigi.Task):
 
 class LoadSnowflake(luigi.Task):
     """
-    Load all three tables into Snowflake from GCS via external stage.
+    Load all three fact tables into Snowflake from GCS via external stage.
     Implements atomic rollback: if any table fails to load, all tables
     created during this run are dropped to avoid inconsistent state.
 
-    Tables loaded:
-      1. FACT_HOST_EVENT_WINDOW (from event_window/)
-      2. COUNTRY_SCORES (from processed/predictions/)
-      3. TRAINING_FEATURES (from processed/training_features/, via INFER_SCHEMA)
+    Tables loaded into FACTS schema:
+      1. FACT_HOST_EVENT_WINDOW
+      2. COUNTRY_SCORES
+      3. TRAINING_FEATURES
     """
     def requires(self):
         return [BuildEventWindow(), TrainAndPredict()]
@@ -303,13 +304,15 @@ class LoadSnowflake(luigi.Task):
             user=SNOWFLAKE_USER,
             password=SNOWFLAKE_PASSWORD,
             database=SNOWFLAKE_DATABASE,
-            schema=SNOWFLAKE_SCHEMA,
             warehouse=SNOWFLAKE_WAREHOUSE,
+            role=SNOWFLAKE_ROLE,
         )
         cur = conn.cursor()
 
+        # Use the FACTS schema for all table operations
+        cur.execute(f"USE SCHEMA {FACTS_SCHEMA}")
+
         # Track which tables were successfully created/loaded in this run
-        # so we can roll them back on failure
         loaded_tables = []
 
         try:
@@ -329,8 +332,8 @@ class LoadSnowflake(luigi.Task):
             """)
             cur.execute("""
                 COPY INTO FACT_HOST_EVENT_WINDOW
-                FROM @GCS_STAGE/event_window/fact_host_event_window/
-                FILE_FORMAT = (FORMAT_NAME = PARQUET_FF)
+                FROM @ANALYTICS.GCS_STAGE/event_window/fact_host_event_window/
+                FILE_FORMAT = (FORMAT_NAME = ANALYTICS.PARQUET_FF)
                 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
                 ON_ERROR = 'CONTINUE';
             """)
@@ -351,8 +354,8 @@ class LoadSnowflake(luigi.Task):
             """)
             cur.execute("""
                 COPY INTO COUNTRY_SCORES
-                FROM @GCS_STAGE/processed/predictions/
-                FILE_FORMAT = (FORMAT_NAME = PARQUET_FF)
+                FROM @ANALYTICS.GCS_STAGE/processed/predictions/
+                FILE_FORMAT = (FORMAT_NAME = ANALYTICS.PARQUET_FF)
                 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
                 PATTERN = '.*country_scores.*'
                 ON_ERROR = 'CONTINUE';
@@ -364,28 +367,25 @@ class LoadSnowflake(luigi.Task):
             # ------ Table 3: TRAINING_FEATURES ------
             logger.info("Loading TRAINING_FEATURES...")
             cur.execute("DROP TABLE IF EXISTS TRAINING_FEATURES;")
-
-            # Use INFER_SCHEMA for wide-format parquet (~177 indicator columns)
             cur.execute("""
                 CREATE TABLE TRAINING_FEATURES
                 USING TEMPLATE (
                     SELECT ARRAY_AGG(OBJECT_CONSTRUCT(*))
                     FROM TABLE(
                         INFER_SCHEMA(
-                            LOCATION => '@GCS_STAGE/processed/training_features/',
-                            FILE_FORMAT => 'PARQUET_FF'
+                            LOCATION => '@ANALYTICS.GCS_STAGE/processed/training_features/',
+                            FILE_FORMAT => 'ANALYTICS.PARQUET_FF'
                         )
                     )
                 );
             """)
             cur.execute("""
                 COPY INTO TRAINING_FEATURES
-                FROM @GCS_STAGE/processed/training_features/
-                FILE_FORMAT = (FORMAT_NAME = PARQUET_FF)
+                FROM @ANALYTICS.GCS_STAGE/processed/training_features/
+                FILE_FORMAT = (FORMAT_NAME = ANALYTICS.PARQUET_FF)
                 MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE
                 ON_ERROR = 'CONTINUE';
             """)
-            # ON_ERROR = CONTINUE to skip 0-byte part files PySpark may leave
             row_count = cur.fetchone()[0]
             logger.info(f"  TRAINING_FEATURES: {row_count} rows loaded")
             loaded_tables.append("TRAINING_FEATURES")
@@ -401,7 +401,6 @@ class LoadSnowflake(luigi.Task):
         except Exception as e:
             # ============================================================
             # ROLLBACK: drop any tables that were loaded in this run
-            # to avoid leaving Snowflake in an inconsistent state.
             # ============================================================
             logger.error(f"Snowflake load FAILED: {e}")
             logger.error(f"Rolling back {len(loaded_tables)} table(s): {loaded_tables}")
@@ -423,13 +422,130 @@ class LoadSnowflake(luigi.Task):
 
 
 # ===========================================================================
+# Dimension tables
+# ===========================================================================
+
+class LoadDimensions(luigi.Task):
+    """
+    Load dimension tables into Snowflake DIMENSIONS schema.
+    Uses World Bank API for country metadata and indicator names.
+    
+    Tables loaded:
+      1. DIM_COUNTRY (iso3, country_name, region, income_group)
+      2. DIM_INDICATOR (indicator_code, indicator_name, source)
+    """
+    def requires(self):
+        return [LoadSnowflake()]
+
+    def output(self):
+        return luigi.LocalTarget("/tmp/luigi_dimensions.flag")
+
+    def run(self):
+        import snowflake.connector
+        import pandas as pd
+
+        conn = snowflake.connector.connect(
+            account=SNOWFLAKE_ACCOUNT,
+            user=SNOWFLAKE_USER,
+            password=SNOWFLAKE_PASSWORD,
+            database=SNOWFLAKE_DATABASE,
+            warehouse=SNOWFLAKE_WAREHOUSE,
+            role=SNOWFLAKE_ROLE,
+        )
+        cur = conn.cursor()
+        cur.execute(f"USE SCHEMA {DIMENSIONS_SCHEMA}")
+
+        try:
+            # ---- DIM_INDICATOR ----
+            logger.info("Building DIM_INDICATOR from WDI API...")
+            import wbgapi as wb
+
+            wdi_series = wb.series.info()
+            wdi_map = {s['id']: s['value'] for s in wdi_series.items}
+
+            imf_map = {
+                "NGDP_RPCH": "Real GDP Growth (%)",
+                "PCPIPCH": "Inflation Rate (%)",
+                "LUR": "Unemployment Rate (%)",
+                "BCA": "Current Account Balance (USD bn)",
+                "GGXWDG_NGDP": "Government Debt (% of GDP)",
+                "BCA_GDP": "Current Account Balance (% of GDP)",
+                "AI_PI": "Price Index",
+            }
+
+            # Get indicator codes from fact table
+            cur.execute(f"SELECT DISTINCT indicator_code FROM {FACTS_SCHEMA}.FACT_HOST_EVENT_WINDOW ORDER BY indicator_code")
+            all_codes = [row[0] for row in cur.fetchall()]
+
+            cur.execute("DROP TABLE IF EXISTS DIM_INDICATOR")
+            cur.execute("""
+                CREATE TABLE DIM_INDICATOR (
+                    indicator_code VARCHAR,
+                    indicator_name VARCHAR,
+                    source         VARCHAR
+                )
+            """)
+
+            for code in all_codes:
+                if code in wdi_map:
+                    name, source = wdi_map[code], "WDI"
+                elif code in imf_map:
+                    name, source = imf_map[code], "IMF"
+                else:
+                    name, source = code, "Unknown"
+                # Escape single quotes in indicator names
+                name = name.replace("'", "''")
+                cur.execute(f"INSERT INTO DIM_INDICATOR VALUES ('{code}', '{name}', '{source}')")
+
+            logger.info(f"  DIM_INDICATOR: {len(all_codes)} rows loaded")
+
+            # ---- DIM_COUNTRY ----
+            logger.info("Building DIM_COUNTRY from WDI API...")
+            country_info = wb.economy.info()
+
+            cur.execute("DROP TABLE IF EXISTS DIM_COUNTRY")
+            cur.execute("""
+                CREATE TABLE DIM_COUNTRY (
+                    iso3          VARCHAR,
+                    country_name  VARCHAR,
+                    region        VARCHAR,
+                    income_group  VARCHAR
+                )
+            """)
+
+            count = 0
+            for c in country_info.items:
+                iso3 = c['id']
+                name = c['value'].replace("'", "''")
+                region = c.get('region', '') or ''
+                income = c.get('incomeLevel', '') or ''
+                cur.execute(f"INSERT INTO DIM_COUNTRY VALUES ('{iso3}', '{name}', '{region}', '{income}')")
+                count += 1
+
+            logger.info(f"  DIM_COUNTRY: {count} rows loaded")
+            logger.info("All dimension tables loaded successfully.")
+
+            with self.output().open("w") as f:
+                f.write("ok")
+
+        except Exception as e:
+            logger.error(f"Dimension table load FAILED: {e}")
+            cur.execute("DROP TABLE IF EXISTS DIM_INDICATOR")
+            cur.execute("DROP TABLE IF EXISTS DIM_COUNTRY")
+            raise
+        finally:
+            cur.close()
+            conn.close()
+
+
+# ===========================================================================
 # Top-level task
 # ===========================================================================
 
 class RunAll(luigi.WrapperTask):
     """Run the full pipeline end-to-end."""
     def requires(self):
-        return [LoadSnowflake()]
+        return [LoadDimensions()]
 
 
 if __name__ == "__main__":
