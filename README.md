@@ -96,7 +96,7 @@ Clear any failed flags if running the pipeline again.
 
 ### 4. Verify Raw Data
 
-The raw data must already be present in GCS. The `run_pipeline.sh` script checks for these files and will exit with a clear error if any are missing. See the "Data Download and Ingestion" section below if you need to populate the bucket from scratch.
+The raw data must already be present in GCS. The `run_pipeline.sh` script checks for these files and will exit with a clear error if any are missing. See the "Data Download and Ingestion" section above if you need to populate the bucket from scratch.
 
 ### 5. Run the Pipeline
 
