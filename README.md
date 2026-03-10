@@ -305,7 +305,5 @@ The Tableau dashboard connects to Snowflake and provides interactive views for e
 
 - All GCP resources are in us-central1 / us-central1-b to avoid data transfer charges.
 - The Dataproc cluster is created and deleted by `run_pipeline.sh` automatically.
-- Snowflake is on a 30-day Enterprise trial ($400 credits). The trial must remain active through the grading period.
-- The Isolation Forest model uses one-class anomaly detection because training data contains only positive examples (past host countries) with no labeled negative examples.
-- WDI ingestion is excluded from the Luigi pipeline because it takes ~20 minutes. It is treated as a pre-existing GCS asset.
-- Snowflake credentials are set via `export` in the terminal session. Never committed to the repo.
+- The SVM model uses one-class anomaly detection because training data contains only positive examples (past host countries) with no labeled negative examples.
+- WDI ingestion is excluded from the Luigi pipeline because it takes ~4 hours. It is treated as a pre-existing GCS asset.
