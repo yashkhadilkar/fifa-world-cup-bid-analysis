@@ -286,6 +286,18 @@ The Tableau dashboard connects to Snowflake and provides interactive views for e
 ├── requirements.txt             # Python dependencies
 ├── .gitignore                   # Excludes credentials, data files, and caches
 └── README.md                    # This file
-└── Pipeline_Model.ipynb         # OneSVM Model
+└── Pipeline_Model.ipynb         # One-Class SVM (OC-SVM) model: an unsupervised machine learning algorithm primarily used for anomaly (or outlier) detection.
 
 ```
+
+## Team
+
+| Name              | Role                    |
+|-------------------|-------------------------|
+| Yash Khadilkar    | Technical, ETL           |
+| Anay Mehta        | Technical, Model         |
+| Hans Grunwald     | Data, dashboard |
+| Matheus Kina      | Data curation, dashboard |
+| Zahid Ahmed       | Data curation, presentation|
+| Matheus Kina      | Data curation, presentation |
+| Mubarak Alkharafi | Data curation, dashboard |
