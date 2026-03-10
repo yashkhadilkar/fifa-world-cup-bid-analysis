@@ -70,12 +70,12 @@ gs://msba405-team-1-data/
 ├── scripts/
 │   ├── build_training_features.py
 │   └── build_event_window.py
-├── processed/                            (created by pipeline)
-│   ├── training_features/                (33 rows, ~177 indicators)
+├── processed/                          
+│   ├── training_features/             
 │   └── predictions/
-│       └── country_scores.parquet        (208 rows)
-└── event_window/                         (created by pipeline)
-    └── fact_host_event_window/           (172,249 rows)
+│       └── country_scores.parquet       
+└── event_window/                       
+    └── fact_host_event_window/          
 ```
 
 
