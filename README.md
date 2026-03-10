@@ -154,3 +154,114 @@ This single command:
 Expected runtime: ~25-30 minutes (cluster creation takes 2-3 min, Spark jobs ~10 min, model + Snowflake ~12-13 min).
 
 ⭐ Demo was run in Google Colab
+
+
+## Fault Tolerance
+
+The pipeline implements fault tolerance at two levels:
+
+**Luigi task-level:** Each task writes a flag file on success. If a task fails, Luigi stops downstream tasks but preserves completed work. Re-running the pipeline skips already-completed tasks (idempotent).
+
+**Snowflake atomic rollback:** The LoadSnowflake task wraps all three table loads in a single try/except block. If any table fails to load, all tables that were successfully created during that run are dropped (rolled back), preventing Snowflake from being left in an inconsistent state with partial data. On re-run, all three tables are reloaded from scratch.
+
+**Cluster cleanup:** The `run_pipeline.sh` script always deletes the Dataproc cluster, even if the pipeline fails. This prevents orphaned clusters from burning credits.
+
+## Snowflake Schema
+
+**Account:** your_account (GCP us-central1)
+**Database:** FIFA_WC
+**Schemas:** FACTS, DIMENSIONS
+**Warehouse:** WC_WH (XSMALL, auto-suspend 60s)
+
+### FACTS.FACT_HOST_EVENT_WINDOW
+
+Indicator time series for each past host country, aligned to event time (years relative to hosting year). Used by Tableau to show pre/post hosting economic trends.
+
+```sql
+CREATE TABLE FACTS.FACT_HOST_EVENT_WINDOW (
+    iso3            VARCHAR,     -- Country ISO3 code (e.g. 'BRA', 'DEU')
+    indicator_code  VARCHAR,     -- WDI/IMF indicator code (e.g. 'NY.GDP.MKTP.KD.ZG')
+    year            INTEGER,     -- Calendar year
+    value           FLOAT,       -- Indicator value
+    host_iso3       VARCHAR,     -- Host country ISO3 code
+    tournament_year INTEGER,     -- FIFA World Cup year
+    event_time      INTEGER      -- Year relative to hosting (0 = host year, -6 to +6)
+);
+-- 172,249 rows
+```
+
+### FACTS.COUNTRY_SCORES
+
+Model output scoring every country.
+
+```sql
+CREATE TABLE FACTS.COUNTRY_SCORES (
+    iso3                    VARCHAR,  -- Country ISO3 code
+    anomaly_label           INTEGER,  -- 1 = similar to past hosts, -1 = anomaly
+    data_completeness       FLOAT,    -- Fraction of indicators available (0.0 to 1.0)
+    hosting_readiness_score FLOAT     -- Normalized score (0 to 100)
+);
+-- 208 rows
+```
+
+### FACTS.TRAINING_FEATURES
+
+Wide-format feature matrix used to train the model. One row per host country per tournament, with ~177 indicator columns (6-year pre-event averages).
+
+```sql
+-- Created dynamically via INFER_SCHEMA (column names contain dots from WDI indicator codes)
+-- Key columns: "host_iso3" VARCHAR, "tournament_year" NUMBER
+-- Feature columns: "AG.CON.FERT.PT.ZS", "BX.KLT.DINV.WD.GD.ZS", etc.
+-- All column names are lowercase and quoted due to dots in WDI codes
+-- 33 rows
+```
+
+### DIMENSIONS.DIM_COUNTRY
+
+Country metadata for joining to fact tables.
+
+```sql
+CREATE TABLE DIMENSIONS.DIM_COUNTRY (
+    iso3          VARCHAR,    -- Country ISO3 code
+    country_name  VARCHAR,    -- Full country name
+    region        VARCHAR,    -- World Bank region code (e.g. 'LCN', 'ECS', 'MEA')
+    income_group  VARCHAR     -- Income classification (HIC, UMC, LMC, LIC)
+);
+-- 266 rows
+```
+
+### DIMENSIONS.DIM_INDICATOR
+
+Indicator metadata mapping codes to readable names.
+
+```sql
+CREATE TABLE DIMENSIONS.DIM_INDICATOR (
+    indicator_code VARCHAR,   -- WDI/IMF indicator code
+    indicator_name VARCHAR,   -- Human-readable name
+    source         VARCHAR    -- Data source ('WDI' or 'IMF')
+);
+-- 1,541 rows
+```
+
+### Snowflake Infrastructure Objects
+
+```sql
+-- Schemas
+CREATE SCHEMA IF NOT EXISTS FACTS;
+CREATE SCHEMA IF NOT EXISTS DIMENSIONS;
+
+-- Storage integration (connects Snowflake to GCS)
+CREATE STORAGE INTEGRATION GCS_INTEGRATION
+    TYPE = EXTERNAL_STAGE
+    STORAGE_PROVIDER = 'GCS'
+    ENABLED = TRUE
+    STORAGE_ALLOWED_LOCATIONS = ('gcs://msba405-team-1-data/');
+
+-- External stage and file format (in ANALYTICS schema, referenced by pipeline)
+CREATE FILE FORMAT ANALYTICS.PARQUET_FF TYPE = PARQUET;
+
+CREATE STAGE ANALYTICS.GCS_STAGE
+    STORAGE_INTEGRATION = GCS_INTEGRATION
+    URL = 'gcs://msba405-team-1-data/'
+    FILE_FORMAT = ANALYTICS.PARQUET_FF;
+```
