@@ -32,6 +32,10 @@ The pipeline flows left to right through five stages:
 
 **Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting similarity and historical impact.
 
+## Data Download and Ingestion
+
+Raw data must be present in GCS before running the pipeline. Ingest  If the bucket is already populated (as it is for the course staff), skip this section.
+
 ## Quick Start
 
 ### 1. Prerequisites
