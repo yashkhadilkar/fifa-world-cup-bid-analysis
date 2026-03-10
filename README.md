@@ -1,4 +1,4 @@
-# Should We Bid? — FIFA World Cup Hosting Decision Support Tool
+# Should We Accept the Bid? — FIFA World Cup Hosting Decision Support Tool
 
 **MSBA 405 · Team 1 · UCLA Anderson**
 
