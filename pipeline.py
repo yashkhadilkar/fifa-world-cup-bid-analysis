@@ -185,86 +185,121 @@ class TrainAndPredict(luigi.Task):
     def run(self):
         import pandas as pd
         import numpy as np
-        from sklearn.ensemble import IsolationForest
+        from sklearn.svm import OneClassSVM
         from sklearn.impute import SimpleImputer
         from sklearn.preprocessing import StandardScaler
+        from sklearn.decomposition import PCA
         import pyarrow.parquet as pq
         import gcsfs
 
         fs = gcsfs.GCSFileSystem(project=GCP_PROJECT)
 
-        # ---- Load training features (host countries) ----
-        logger.info("Loading training features from GCS...")
-        train_path = f"msba405-team-1-data/processed/training_features/"
-        train_df = pq.ParquetDataset(train_path, filesystem=fs).read().to_pandas()
-
-        id_cols = ["host_iso3", "tournament_year"]
-        feature_cols = [c for c in train_df.columns if c not in id_cols]
-
-        X_train = train_df[feature_cols].values
-
-        # ---- Impute and scale ----
-        imputer = SimpleImputer(strategy="median")
-        X_train_imp = imputer.fit_transform(X_train)
-
-        scaler = StandardScaler()
-        X_train_scaled = scaler.fit_transform(X_train_imp)
-
-        # ---- Train model ----
-        # TODO: Replace with SVM when ready
-        logger.info("Training Isolation Forest...")
-        model = IsolationForest(
-            n_estimators=200,
-            contamination=0.1,
-            random_state=42
-        )
-        model.fit(X_train_scaled)
-
-        # ---- Score all countries ----
-        logger.info("Building all-country feature matrix...")
-
+        # ---- Load raw data ----
+        logger.info("Loading data from GCS...")
         wdi_df = pq.ParquetDataset("msba405-team-1-data/raw/wdi/", filesystem=fs).read().to_pandas()
         imf_df = pq.ParquetDataset("msba405-team-1-data/raw/imf/", filesystem=fs).read().to_pandas()
+        hosts_df = pd.read_csv(f"gs://{GCS_BUCKET.replace('gs://', '')}/raw/fifa_wc_hosts.csv")
 
-        combined = pd.concat([wdi_df, imf_df], ignore_index=True)
+        econ_data = pd.concat([wdi_df, imf_df], ignore_index=True)
 
-        # Use 2019-2024 window (anchored to WDI max year)
-        max_year = int(wdi_df["year"].max())
-        window_start = max_year - 5
-        recent = combined[(combined["year"] >= window_start) & (combined["year"] <= max_year)]
+        # ---- Build candidate matrix (latest year snapshot) ----
+        latest_year = int(econ_data["year"].max())
+        logger.info(f"Building candidate matrix for year {latest_year}...")
+        cand_df = econ_data[econ_data["year"] == latest_year].pivot(
+            index="iso3", columns="indicator_code", values="value"
+        )
 
-        # Pivot to wide: one row per country
-        agg = recent.groupby(["iso3", "indicator_code"])["value"].mean().reset_index()
-        wide = agg.pivot(index="iso3", columns="indicator_code", values="value")
+        # ---- Build host training profiles (snapshot at hosting year) ----
+        logger.info("Building host training profiles...")
+        host_profiles = []
+        for _, row in hosts_df.iterrows():
+            snap = econ_data[
+                (econ_data["iso3"] == row["iso3"]) & (econ_data["year"] == row["year"])
+            ]
+            if not snap.empty:
+                p = snap.pivot(index="iso3", columns="indicator_code", values="value")
+                host_profiles.append(p)
 
-        # Align columns to training features
-        for col in feature_cols:
-            if col not in wide.columns:
-                wide[col] = np.nan
-        wide = wide[feature_cols]
+        train_full = pd.concat(host_profiles)
+        common = train_full.columns.intersection(cand_df.columns)
+        logger.info(f"  {len(train_full)} host profiles, {len(common)} common indicators")
 
-        # Filter: require 70% completeness
-        completeness = wide.notna().mean(axis=1)
-        wide_filtered = wide[completeness >= 0.70].copy()
+        X_train_raw = train_full[common]
+        X_cand_raw = cand_df[common]
 
-        X_all = wide_filtered.values
-        X_all_imp = imputer.transform(X_all)
-        X_all_scaled = scaler.transform(X_all_imp)
+        # ---- Log-normalization (manages scale differences) ----
+        X_train_log = np.sign(X_train_raw) * np.log1p(np.abs(X_train_raw))
+        X_cand_log = np.sign(X_cand_raw) * np.log1p(np.abs(X_cand_raw))
 
-        # Predict
-        scores = model.decision_function(X_all_scaled)
-        labels = model.predict(X_all_scaled)
+        imputer = SimpleImputer(strategy="median")
+        scaler = StandardScaler()
 
-        # Normalize scores to 0-100
-        s_min, s_max = scores.min(), scores.max()
-        normalized = ((scores - s_min) / (s_max - s_min)) * 100
+        X_train_scaled = scaler.fit_transform(imputer.fit_transform(X_train_log))
+        X_cand_scaled = scaler.transform(imputer.transform(X_cand_log))
 
-        results = pd.DataFrame({
-            "iso3": wide_filtered.index,
-            "anomaly_label": labels,
-            "data_completeness": completeness[completeness >= 0.70].values,
-            "hosting_readiness_score": np.round(normalized, 2)
-        })
+        # ---- PCA with orientation calibration ----
+        logger.info("Running PCA...")
+        pca = PCA(n_components=2)
+        X_train_pca = pca.fit_transform(X_train_scaled)
+        X_cand_pca = pca.transform(X_cand_scaled)
+
+        # Calibrate orientation: ensure high-capacity countries are on the positive side
+        if "USA" in cand_df.index and "ZWE" in cand_df.index:
+            usa_pos = X_cand_pca[cand_df.index.get_loc("USA"), 0]
+            zwe_pos = X_cand_pca[cand_df.index.get_loc("ZWE"), 0]
+            if usa_pos < zwe_pos:
+                X_train_pca[:, 0] *= -1
+                X_cand_pca[:, 0] *= -1
+                logger.info("  Calibrated PCA orientation.")
+
+        # ---- Train One-Class SVM ----
+        logger.info("Training One-Class SVM...")
+        ocsvm = OneClassSVM(kernel="rbf", gamma="auto", nu=0.05)
+        ocsvm.fit(X_train_scaled)
+
+        # ---- Score all countries (viability index) ----
+        logger.info("Computing viability scores...")
+        host_center = X_train_pca.mean(axis=0)
+
+        # Compute host baseline scores for normalization
+        host_raw_scores = []
+        for h_pca in X_train_pca:
+            v = h_pca - host_center
+            host_raw_scores.append((v[0] * 1.5) + (v[1] * 1.0))
+        host_raw_scores = np.array(host_raw_scores)
+
+        # Score each candidate country
+        results_rows = []
+        for i, iso3 in enumerate(cand_df.index):
+            vec_scaled = X_cand_scaled[i].reshape(1, -1)
+            vec_pca = X_cand_pca[i]
+
+            # Power score: Scale (PC1) + Stability (PC2)
+            vector = vec_pca - host_center
+            power_score = (vector[0] * 1.5) + (vector[1] * 1.0)
+
+            # Viability index: normalize against host distribution (avg host = 50)
+            viability_idx = float(np.interp(
+                power_score,
+                [host_raw_scores.min(), np.mean(host_raw_scores), host_raw_scores.max()],
+                [20, 50, 95]
+            ))
+
+            # SVM inlier/outlier check
+            is_inlier = int(ocsvm.predict(vec_scaled)[0])
+
+            # Data completeness
+            completeness = float(cand_df.loc[iso3, common].notna().mean())
+
+            results_rows.append({
+                "iso3": iso3,
+                "anomaly_label": is_inlier,
+                "data_completeness": round(completeness, 4),
+                "hosting_readiness_score": round(viability_idx, 2)
+            })
+
+        results = pd.DataFrame(results_rows)
+        logger.info(f"  Scored {len(results)} countries")
 
         # Write predictions to GCS
         logger.info(f"Writing {len(results)} country scores to GCS...")
