@@ -296,9 +296,9 @@ The Tableau dashboard connects to Snowflake and provides interactive views for e
 |-------------------|-------------------------|
 | Yash Khadilkar    | Technical, ETL pipeline           |
 | Anay Mehta        | Technical, Model         |
-| Hans Grunwald     | Data, dashboard |
-| Matheus Kina      | Data, dashboard |
-| Zahid Ahmed       | Data, presentation|
+| Hans Grunwald     | Data curation, dashboard |
+| Matheus Kina      | Data curation, dashboard |
+| Zahid Ahmed       | Data curation, presentation|
 | Mubarak Alkharafi | Data curation, presentation |
 
 ## Notes
