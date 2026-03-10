@@ -265,3 +265,27 @@ CREATE STAGE ANALYTICS.GCS_STAGE
     URL = 'gcs://msba405-team-1-data/'
     FILE_FORMAT = ANALYTICS.PARQUET_FF;
 ```
+
+## Tableau Dashboard
+
+**Dashboard link:** [TODO: paste Tableau link here]
+
+The Tableau dashboard connects to Snowflake and provides interactive views for exploring ...
+
+# Project Structure
+
+```
+├── run_pipeline.sh              # Single-command entry point (creates cluster, runs pipeline, deletes cluster)
+├── pipeline.py                  # Luigi pipeline (task definitions and orchestration)
+├── luigi.cfg                    # Luigi configuration
+├── build_training_features.py   # PySpark script for training feature extraction
+├── build_event_window.py        # PySpark script for event window construction
+├── ingest_wdi.py                # WDI data ingestion script (run separately, ~4 hours)
+├── ingest_imf.py                # IMF data ingestion script (run separately)
+├── fifa_wc_hosts.csv            # Curated host country list (1930-2034)
+├── requirements.txt             # Python dependencies
+├── .gitignore                   # Excludes credentials, data files, and caches
+└── README.md                    # This file
+└── Pipeline_Model.ipynb         # OneSVM Model
+
+```
