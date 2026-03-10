@@ -33,14 +33,7 @@ The pipeline flows left to right through five stages:
 **Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting similarity and historical impact.
 
 
-## Data Download and Ingestion
-
-Raw data must be present in GCS before running the pipeline. The `ingest_imf.py` and `ingest_wdi.py` scripts should be run prior to store the necessary data in GCS buckets before running the pipeline. If the bucket is already populated (as it is for the demo video), skip this section. 
-
-Additionally, a scripts folder should be created in GCS bucket to store all of the scripts for the data sources and processing phase, including `ingest_imf.py`, `ingest_wdi.py`, `build_event_windows.py`, and `build_training_features.py`.
-
-
-# Data Download and Ingestion
+# # Data Download and Ingestion
 
 Raw data must be present in GCS before running the pipeline. If the bucket is already populated (as it is for the demo video), skip this section. 
 
