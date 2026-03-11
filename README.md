@@ -271,7 +271,7 @@ CREATE STAGE ANALYTICS.GCS_STAGE
 
 The Tableau dashboard connects to Snowflake and provides interactive views for exploring ...
 
-# Project Structure
+## Project Structure
 
 ```
 ├── run_pipeline.sh              # Single-command entry point (creates cluster, runs pipeline, deletes cluster)
