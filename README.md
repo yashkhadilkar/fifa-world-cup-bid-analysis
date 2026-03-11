@@ -174,7 +174,7 @@ The pipeline implements fault tolerance at two levels:
 
 ### FACTS.FACT_HOST_EVENT_WINDOW
 
-Indicator time series for each past host country, aligned to event time (years relative to hosting year). Used by Tableau to show pre/post hosting economic trends.
+Indicator time series for each past host country, aligned to event time (years relative to hosting year). 
 
 ```sql
 CREATE TABLE FACTS.FACT_HOST_EVENT_WINDOW (
