@@ -96,11 +96,10 @@ gcloud auth login
 gcloud config set project msba405-team-1
 ```
 
-### 2. Set Snowflake Credentials
+### 2. One-Time Snowflake Setup
 
-Export your Snowflake credentials in your terminal before running:
-
-```bash
+If this is the first time running the pipeline on a fresh Snowflake account, grant permissions on the schemas:
+```python
 import snowflake.connector
 
 conn = snowflake.connector.connect(
@@ -121,8 +120,22 @@ cur.close()
 conn.close()
 ```
 
-These stay in your terminal session only and are never committed to the repo.
+This only needs to be done once.
 
+
+### 3. Set Snowflake Credentials
+
+Export your Snowflake credentials in your terminal before running:
+```bash
+export SNOWFLAKE_ACCOUNT="your_account"
+export SNOWFLAKE_USER="your_username"
+export SNOWFLAKE_PASSWORD="your_password"
+export SNOWFLAKE_WAREHOUSE="WC_WH"
+export SNOWFLAKE_DATABASE="FIFA_WC"
+export SNOWFLAKE_ROLE="ACCOUNTADMIN"
+```
+
+These stay in your terminal session only and are never committed to the repo. See `env.example` for a reference template.
 ### 3. Clear failed flags
 
 Clear any failed flags if running the pipeline again.
