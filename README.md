@@ -281,7 +281,7 @@ CREATE STAGE ANALYTICS.GCS_STAGE
 
 ## Tableau Dashboard
 
-**Dashboard link:** [https://public.tableau.com/app/profile/hans.grunwald6573/viz/MSBA_405_1/ver2_Final_Dashboard2?publish=yes](https://public.tableau.com/app/profile/hans.grunwald6573/viz/MSBA_405_1/ver2_Final_Dashboard2?publish=yes)
+**Dashboard link:** [MSBA 405 - FIFA World Cup Dashboard](https://public.tableau.com/app/profile/hans.grunwald6573/viz/MSBA_405_1/ver2_Final_Dashboard2?publish=yes)
 
 The dashboard connects to Snowflake (FIFA_WC database) and uses the FACTS and DIMENSIONS schemas to power four views:
 
