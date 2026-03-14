@@ -135,8 +135,9 @@ export SNOWFLAKE_DATABASE="FIFA_WC"
 export SNOWFLAKE_ROLE="ACCOUNTADMIN"
 ```
 
-These stay in your terminal session only and are never committed to the repo. See `env.example` for a reference template.
-### 3. Clear failed flags
+These stay in your terminal session only and are never committed to the repo.
+
+### 4. Clear failed flags
 
 Clear any failed flags if running the pipeline again.
 
@@ -145,11 +146,11 @@ Clear any failed flags if running the pipeline again.
 ```
 
 
-### 4. Verify Raw Data
+### 5. Verify Raw Data
 
 The raw data must already be present in GCS. The `run_pipeline.sh` script checks for these files and will exit with a clear error if any are missing. See the "Data Download and Ingestion" section above if you need to populate the bucket from scratch.
 
-### 5. Run the Pipeline
+### 6. Run the Pipeline
 
 ```bash
 bash run_pipeline.sh
