@@ -24,11 +24,11 @@ The pipeline flows left to right through five stages:
 
 **Processing (Dataproc):** Two PySpark jobs run on a Dataproc cluster. BuildTrainingFeatures joins WDI + IMF + hosts, computes 6-year pre-event averages, pivots to wide format, and filters correlated indicators at a 0.90 threshold (output: 33 rows, ~177 indicators). BuildEventWindow builds indicator time series from t-6 to t+6 relative to each host's tournament year (output: 172,249 rows).
 
-**ML Model (local):** TrainAndPredict trains a SVM Model (scikit-learn) on host country profiles and scores all countries on hosting similarity (output: 208 country scores).
+**ML Model (local):** TrainAndPredict trains a SVM Model (scikit-learn) on host country profiles and scores all countries on hosting viability (output: 208 country scores).
 
 **Serving (Snowflake):** LoadSnowflake loads three fact tables into the FACTS schema with atomic rollback: if any table fails, all tables from that run are dropped. LoadDimensions then populates the DIMENSIONS schema with DIM_COUNTRY and DIM_INDICATOR using the World Bank API for human-readable names.
 
-**Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting similarity and historical impact.
+**Visualization (Tableau):** A Tableau dashboard connects to Snowflake and provides interactive exploration of hosting viability and historical impact.
 
 
 ## Data Download and Ingestion
@@ -285,7 +285,7 @@ CREATE STAGE ANALYTICS.GCS_STAGE
 
 The dashboard connects to Snowflake (FIFA_WC database) and uses the FACTS and DIMENSIONS schemas to power four views:
 
-**Host Validity Score Map** (source: FACTS.COUNTRY_SCORES joined with DIMENSIONS.DIM_COUNTRY): A choropleth world map colored by each country's hosting viability index (20-95 scale). Darker shading indicates higher similarity to past host economic profiles. Filterable by continent.
+**Host Viability Score Map** (source: FACTS.COUNTRY_SCORES joined with DIMENSIONS.DIM_COUNTRY): A choropleth world map colored by each country's hosting viability index (20-95 scale). Darker shading indicates higher similarity to past host economic profiles. Filterable by continent.
 
 **Top Ranked Countries** (source: FACTS.COUNTRY_SCORES): A horizontal bar chart ranking countries by their hosting viability score. Shows which nations have economic profiles most consistent with successful past hosts. USA, China, and France rank highest as elite candidates.
 
