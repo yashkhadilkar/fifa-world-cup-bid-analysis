@@ -37,14 +37,19 @@ Raw data must be present in GCS before running the pipeline. If the bucket is al
 
 ### 1. World Bank WDI Data
 
-Run the WDI ingestion script `ingest_wdi.py` in Colab (this takes ~4 hours and produces 8.4M rows):
+**Source:** [https://data.worldbank.org/](https://data.worldbank.org/) 
 
+Run the WDI ingestion script `ingest_wdi.py` in Colab (this takes ~4 hours and produces 8.4M rows).
 
 ### 2. IMF Data
 
-Run the WDI ingestion script `ingest_imf.py` in Colab:
+**Source:** [https://www.imf.org/external/datamapper/api/v1/](https://www.imf.org/external/datamapper/api/v1/)
+
+Run the IMF ingestion script `ingest_imf.py` in Colab.
 
 ### 3. FIFA Hosts CSV
+
+**Source:** Manually curated from [https://en.wikipedia.org/wiki/FIFA_World_Cup_hosts](https://en.wikipedia.org/wiki/FIFA_World_Cup_hosts).
 
 ```bash
 gsutil cp fifa_wc_hosts.csv gs://msba405-team-1-data/raw/fifa_wc_hosts.csv
@@ -120,7 +125,7 @@ cur.close()
 conn.close()
 ```
 
-This only needs to be done once.
+This only needs to be done once. Snowflake free trial: [https://signup.snowflake.com/](https://signup.snowflake.com/) (select GCP, us-central1 region, Enterprise edition).
 
 
 ### 3. Set Snowflake Credentials
