@@ -147,7 +147,7 @@ These stay in your terminal session only and are never committed to the repo.
 Clear any failed flags if running the pipeline again.
 
 ```bash
-!rm -f /tmp/luigi_*.flag
+rm -f /tmp/luigi_*.flag
 ```
 
 
