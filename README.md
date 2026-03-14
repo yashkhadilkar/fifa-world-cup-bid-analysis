@@ -281,9 +281,19 @@ CREATE STAGE ANALYTICS.GCS_STAGE
 
 ## Tableau Dashboard
 
-**Dashboard link:** [TODO: paste Tableau link here]
+**Dashboard link:** [https://public.tableau.com/app/profile/hans.grunwald6573/viz/MSBA_405_1/ver2_Final_Dashboard2?publish=yes](https://public.tableau.com/app/profile/hans.grunwald6573/viz/MSBA_405_1/ver2_Final_Dashboard2?publish=yes)
 
-The Tableau dashboard connects to Snowflake and provides interactive views for exploring ...
+The dashboard connects to Snowflake (FIFA_WC database) and uses the FACTS and DIMENSIONS schemas to power four views:
+
+**Host Validity Score Map** (source: FACTS.COUNTRY_SCORES joined with DIMENSIONS.DIM_COUNTRY): A choropleth world map colored by each country's hosting viability index (20-95 scale). Darker shading indicates higher similarity to past host economic profiles. Filterable by continent.
+
+**Top Ranked Countries** (source: FACTS.COUNTRY_SCORES): A horizontal bar chart ranking countries by their hosting viability score. Shows which nations have economic profiles most consistent with successful past hosts. USA, China, and France rank highest as elite candidates.
+
+**GDP by Host Country** (source: FACTS.FACT_HOST_EVENT_WINDOW joined with DIMENSIONS.DIM_INDICATOR): A line chart showing GDP trends for past host nations from 6 years before to 6 years after hosting (event time -6 to +6). The "World Cup" reference line at event time 0 marks the hosting year, allowing users to see pre/post economic trajectories.
+
+**Event Window by Indicator** (source: FACTS.FACT_HOST_EVENT_WINDOW joined with DIMENSIONS.DIM_INDICATOR): A line chart showing how any selected economic indicator changed for past host nations from 6 years before to 6 years after hosting (event time -6 to +6). Defaults to Air Passengers, but users can switch between indicators (GDP, tourism, unemployment, FDI, etc.) using the Indicator Name filter on the right. Currently displays raw WDI/IMF indicator codes; human-readable names are a planned improvement using the DIM_INDICATOR dimension table.
+
+The dashboard supports slice and dice (continent filter), drill down (country selection from map to detail), pivoting (swap indicators in the event window charts), and interactive exploration (hover tooltips, filter controls).
 
 ## Project Structure
 
