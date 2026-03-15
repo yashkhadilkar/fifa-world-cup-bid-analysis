@@ -97,6 +97,7 @@ pip install luigi snowflake-connector-python gcsfs pyarrow pandas numpy scikit-l
 You also need the Google Cloud SDK (`gcloud` CLI) authenticated to the `msba405-team-1` project:
 
 ```bash
+from google.colab import auth
 gcloud auth login
 gcloud config set project msba405-team-1
 ```
