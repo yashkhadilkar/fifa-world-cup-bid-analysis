@@ -31,7 +31,7 @@ echo ""
 if [ -z "$SNOWFLAKE_USER" ] || [ -z "$SNOWFLAKE_PASSWORD" ]; then
     echo "ERROR: Snowflake credentials not set."
     echo ""
-    echo "  export SNOWFLAKE_ACCOUNT=\"LHNMKHH-EG10620\""
+    echo "  export SNOWFLAKE_ACCOUNT=\"your_account\""
     echo "  export SNOWFLAKE_USER=\"your_username\""
     echo "  export SNOWFLAKE_PASSWORD=\"your_password\""
     echo "  export SNOWFLAKE_WAREHOUSE=\"WC_WH\""
